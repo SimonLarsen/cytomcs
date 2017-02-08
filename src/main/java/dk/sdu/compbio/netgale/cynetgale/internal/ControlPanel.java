@@ -19,6 +19,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 
@@ -30,7 +31,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
     private JPanel rootPanel;
     private JList<CyNetwork> availableNetworksList;
     private JList<CyNetwork> selectedNetworksList;
-    private JCheckBox returnOnlyLargestConnectedCheckBox;
+    private JCheckBox connectedCheckbox;
     private JSpinner iterationsSpinner;
     private JSlider perturbationSlider;
     private JButton includeNetworksButton;
@@ -54,7 +55,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
                 java.util.List<CyNetwork> networks = new ArrayList<>();
                 Enumeration<CyNetwork> networks_enum = selectedNetworksModel.elements();
                 while (networks_enum.hasMoreElements()) networks.add(networks_enum.nextElement());
-                Parameters params = new Parameters(0, 0f, false);
+                Parameters params = getParameters();
 
                 taskManager.execute(new TaskIterator(new AlignTask(networks, params)));
             }
@@ -79,6 +80,16 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
                 }
             }
         });
+    }
+
+    private Parameters getParameters() {
+        try {
+            iterationsSpinner.commitEdit();
+        } catch(ParseException pe) { }
+        int iterations = (Integer)iterationsSpinner.getValue();
+        float perturbation = perturbationSlider.getValue() / 100f;
+        boolean connected = connectedCheckbox.isSelected();
+        return new Parameters(iterations, perturbation, connected);
     }
 
     @Override
@@ -139,9 +150,9 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         panel2.setLayout(new GridLayoutManager(3, 2, new Insets(0, 0, 0, 0), -1, -1));
         rootPanel.add(panel2, new GridConstraints(0, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         panel2.setBorder(BorderFactory.createTitledBorder("Parameters"));
-        returnOnlyLargestConnectedCheckBox = new JCheckBox();
-        returnOnlyLargestConnectedCheckBox.setText("Return only largest connected component");
-        panel2.add(returnOnlyLargestConnectedCheckBox, new GridConstraints(2, 0, 1, 2, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        connectedCheckbox = new JCheckBox();
+        connectedCheckbox.setText("Return only largest connected component");
+        panel2.add(connectedCheckbox, new GridConstraints(2, 0, 1, 2, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JLabel label1 = new JLabel();
         label1.setText("Number of interations");
         panel2.add(label1, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));

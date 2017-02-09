@@ -1,8 +1,6 @@
 package dk.sdu.compbio.netgale.cynetgale.internal;
 
-import com.intellij.uiDesigner.core.GridConstraints;
-import com.intellij.uiDesigner.core.GridLayoutManager;
-import com.intellij.uiDesigner.core.Spacer;
+import net.miginfocom.swing.MigLayout;
 import org.cytoscape.application.swing.CytoPanelComponent;
 import org.cytoscape.application.swing.CytoPanelName;
 import org.cytoscape.model.CyNetwork;
@@ -16,6 +14,10 @@ import org.cytoscape.work.TaskIterator;
 import org.cytoscape.work.TaskManager;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.text.DefaultEditorKit;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -24,60 +26,72 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 
 public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, NetworkAboutToBeDestroyedListener {
-    private DefaultListModel<CyNetwork> availableNetworksModel;
-    private DefaultListModel<CyNetwork> selectedNetworksModel;
+    private static final int DEFAULT_ITERATIONS = 20;
+    private static final int DEFAULT_PERTURBATION = 10;
 
-    private JButton alignButton;
-    private JPanel rootPanel;
-    private JList<CyNetwork> availableNetworksList;
-    private JList<CyNetwork> selectedNetworksList;
-    private JCheckBox connectedCheckbox;
+    private DefaultListModel<CyNetwork> availableListModel;
+    private DefaultListModel<CyNetwork> selectedListModel;
+
+    private JPanel rootPanel, paramsPanel, networksPanel, runPanel;
+
     private JSpinner iterationsSpinner;
+    private JLabel perturbationLabel;
     private JSlider perturbationSlider;
-    private JButton includeNetworksButton;
-    private JButton excludeNetworksButton;
+    private JCheckBox connectedCheckbox;
+    private JList<CyNetwork> availableList;
+    private JList<CyNetwork> selectedList;
+    private JButton includeButton;
+    private JButton excludeButton;
+    private JButton alignButton;
 
     public ControlPanel(
             CyNetworkManager networkManager,
             CyNetworkFactory networkFactory,
             TaskManager taskManager
     ) {
-        availableNetworksModel = new DefaultListModel<>();
-        selectedNetworksModel = new DefaultListModel<>();
+        availableListModel = new DefaultListModel<>();
+        selectedListModel = new DefaultListModel<>();
         for (CyNetwork network : networkManager.getNetworkSet()) {
-            availableNetworksModel.addElement(network);
+            availableListModel.addElement(network);
         }
 
-        $$$setupUI$$$();
+        createGUI();
+
         alignButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
                 java.util.List<CyNetwork> networks = new ArrayList<>();
-                Enumeration<CyNetwork> networks_enum = selectedNetworksModel.elements();
+                Enumeration<CyNetwork> networks_enum = selectedListModel.elements();
                 while (networks_enum.hasMoreElements()) networks.add(networks_enum.nextElement());
                 Parameters params = getParameters();
 
-                taskManager.execute(new TaskIterator(new AlignTask(networks, params)));
+                taskManager.execute(new TaskIterator(new AlignTask(networks, networkFactory, networkManager, params)));
             }
         });
-        includeNetworksButton.addActionListener(new ActionListener() {
+        includeButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                java.util.List<CyNetwork> selected = availableNetworksList.getSelectedValuesList();
+                java.util.List<CyNetwork> selected = availableList.getSelectedValuesList();
                 for (CyNetwork network : selected) {
-                    availableNetworksModel.removeElement(network);
-                    selectedNetworksModel.addElement(network);
+                    availableListModel.removeElement(network);
+                    selectedListModel.addElement(network);
                 }
             }
         });
-        excludeNetworksButton.addActionListener(new ActionListener() {
+        excludeButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
-                java.util.List<CyNetwork> selected = selectedNetworksList.getSelectedValuesList();
+                java.util.List<CyNetwork> selected = selectedList.getSelectedValuesList();
                 for (CyNetwork network : selected) {
-                    selectedNetworksModel.removeElement(network);
-                    availableNetworksModel.addElement(network);
+                    selectedListModel.removeElement(network);
+                    availableListModel.addElement(network);
                 }
+            }
+        });
+        perturbationSlider.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent changeEvent) {
+                perturbationLabel.setText(Integer.toString(perturbationSlider.getValue()) + "%");
             }
         });
     }
@@ -94,13 +108,13 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
 
     @Override
     public void handleEvent(NetworkAddedEvent e) {
-        availableNetworksModel.addElement(e.getNetwork());
+        availableListModel.addElement(e.getNetwork());
     }
 
     @Override
     public void handleEvent(NetworkAboutToBeDestroyedEvent e) {
-        availableNetworksModel.removeElement(e.getNetwork());
-        selectedNetworksModel.removeElement(e.getNetwork());
+        availableListModel.removeElement(e.getNetwork());
+        selectedListModel.removeElement(e.getNetwork());
     }
 
     @Override
@@ -123,81 +137,47 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         return null;
     }
 
-    private void createUIComponents() {
-        availableNetworksList = new JList<>(availableNetworksModel);
-        selectedNetworksList = new JList<>(selectedNetworksModel);
-    }
+    private void createGUI() {
+        // params panel
+        paramsPanel = new JPanel(new MigLayout("wrap 3"));
+        paramsPanel.setBorder(new TitledBorder("Parameters"));
+        iterationsSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_ITERATIONS, 1, 100, 1));
+        perturbationLabel = new JLabel(Integer.toString(DEFAULT_PERTURBATION) + "%");
+        perturbationSlider = new JSlider(0, 100, DEFAULT_PERTURBATION);
+        connectedCheckbox = new JCheckBox("Extract largest connected component");
+        paramsPanel.add(new JLabel("Iterations"));
+        paramsPanel.add(iterationsSpinner, "span 2");
+        paramsPanel.add(new JLabel("Perturbation"));
+        paramsPanel.add(perturbationSlider);
+        paramsPanel.add(perturbationLabel);
+        paramsPanel.add(connectedCheckbox, "span 3");
 
-    /**
-     * Method generated by IntelliJ IDEA GUI Designer
-     * >>> IMPORTANT!! <<<
-     * DO NOT edit this method OR call it in your code!
-     *
-     * @noinspection ALL
-     */
-    private void $$$setupUI$$$() {
-        createUIComponents();
-        rootPanel = new JPanel();
-        rootPanel.setLayout(new GridLayoutManager(6, 3, new Insets(0, 0, 0, 0), -1, -1));
-        final JPanel panel1 = new JPanel();
-        panel1.setLayout(new GridLayoutManager(1, 1, new Insets(0, 0, 0, 0), -1, -1));
-        rootPanel.add(panel1, new GridConstraints(4, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-        panel1.setBorder(BorderFactory.createTitledBorder("Run"));
-        alignButton = new JButton();
-        alignButton.setText("Align");
-        panel1.add(alignButton, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final JPanel panel2 = new JPanel();
-        panel2.setLayout(new GridLayoutManager(3, 2, new Insets(0, 0, 0, 0), -1, -1));
-        rootPanel.add(panel2, new GridConstraints(0, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-        panel2.setBorder(BorderFactory.createTitledBorder("Parameters"));
-        connectedCheckbox = new JCheckBox();
-        connectedCheckbox.setText("Return only largest connected component");
-        panel2.add(connectedCheckbox, new GridConstraints(2, 0, 1, 2, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final JLabel label1 = new JLabel();
-        label1.setText("Number of interations");
-        panel2.add(label1, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        perturbationSlider = new JSlider();
-        perturbationSlider.setMaximum(100);
-        perturbationSlider.setToolTipText("Amount of nodes to nodes to perturb between iterations");
-        perturbationSlider.setValue(10);
-        panel2.add(perturbationSlider, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        iterationsSpinner = new JSpinner();
-        iterationsSpinner.setToolTipText("Number of iterations to run before terminating");
-        panel2.add(iterationsSpinner, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final JLabel label2 = new JLabel();
-        label2.setText("Perturbation amount");
-        panel2.add(label2, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final Spacer spacer1 = new Spacer();
-        rootPanel.add(spacer1, new GridConstraints(5, 0, 1, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
-        final JPanel panel3 = new JPanel();
-        panel3.setLayout(new GridLayoutManager(3, 3, new Insets(0, 0, 0, 0), -1, -1));
-        rootPanel.add(panel3, new GridConstraints(1, 0, 3, 3, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-        panel3.setBorder(BorderFactory.createTitledBorder("Select networks to align"));
-        final JScrollPane scrollPane1 = new JScrollPane();
-        panel3.add(scrollPane1, new GridConstraints(1, 0, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
-        scrollPane1.setViewportView(availableNetworksList);
-        final JScrollPane scrollPane2 = new JScrollPane();
-        panel3.add(scrollPane2, new GridConstraints(1, 2, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
-        scrollPane2.setViewportView(selectedNetworksList);
-        includeNetworksButton = new JButton();
-        includeNetworksButton.setText(">");
-        panel3.add(includeNetworksButton, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        excludeNetworksButton = new JButton();
-        excludeNetworksButton.setText("<");
-        panel3.add(excludeNetworksButton, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final JLabel label3 = new JLabel();
-        label3.setText("Available networks");
-        panel3.add(label3, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final JLabel label4 = new JLabel();
-        label4.setText("Networks to align");
-        panel3.add(label4, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        label1.setLabelFor(iterationsSpinner);
-    }
+        // networks panel
+        availableList = new JList<>(availableListModel);
+        selectedList = new JList<>(selectedListModel);
+        includeButton = new JButton(">");
+        excludeButton = new JButton("<");
 
-    /**
-     * @noinspection ALL
-     */
-    public JComponent $$$getRootComponent$$$() {
-        return rootPanel;
+        JPanel networkButtonsPanel = new JPanel(new GridLayout(2,1));
+        networkButtonsPanel.add(includeButton);
+        networkButtonsPanel.add(excludeButton);
+
+        networksPanel = new JPanel(new GridLayout(1, 3));
+        networksPanel.setBorder(new TitledBorder("Select networks to align"));
+        networksPanel.add(new JScrollPane(availableList));
+        networksPanel.add(networkButtonsPanel);
+        networksPanel.add(new JScrollPane(selectedList));
+
+        // run panel
+        runPanel = new JPanel();
+        runPanel.setBorder(new TitledBorder("Start alignment"));
+        alignButton = new JButton("Align");
+        runPanel.add(alignButton, BorderLayout.CENTER);
+
+        // put together
+        rootPanel = new JPanel(new MigLayout("wrap 1"));
+        rootPanel.add(paramsPanel, "growx");
+        rootPanel.add(networksPanel, "growx");
+        rootPanel.add(runPanel, "growx");
     }
 }

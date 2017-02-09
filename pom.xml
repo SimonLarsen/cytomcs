@@ -137,12 +137,6 @@
 
         <!-- project dependencies (must be marked as optional!) -->
 		<dependency>
-			<groupId>com.intellij</groupId>
-			<artifactId>forms_rt</artifactId>
-			<version>7.0.3</version>
-            <optional>true</optional>
-		</dependency>
-		<dependency>
 			<groupId>dk.sdu.compbio.netgale</groupId>
 			<artifactId>jnetgale</artifactId>
 			<version>1.0-SNAPSHOT</version>
@@ -164,6 +158,12 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>21.0</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.miglayout</groupId>
+            <artifactId>miglayout-swing</artifactId>
+            <version>5.0</version>
             <optional>true</optional>
         </dependency>
 	</dependencies>

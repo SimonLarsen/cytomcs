@@ -1,11 +1,11 @@
-package dk.sdu.compbio.netgale.cynetgale.internal;
+package dk.sdu.compbio.cytomcs.internal;
 
-import dk.sdu.compbio.netgale.Model;
-import dk.sdu.compbio.netgale.alg.Aligner;
-import dk.sdu.compbio.netgale.alg.LocalSearch;
-import dk.sdu.compbio.netgale.network.Edge;
-import dk.sdu.compbio.netgale.network.Network;
-import dk.sdu.compbio.netgale.network.Node;
+import dk.sdu.compbio.faithmcs.Model;
+import dk.sdu.compbio.faithmcs.alg.Aligner;
+import dk.sdu.compbio.faithmcs.alg.IteratedLocalSearch;
+import dk.sdu.compbio.faithmcs.network.Edge;
+import dk.sdu.compbio.faithmcs.network.Network;
+import dk.sdu.compbio.faithmcs.network.Node;
 import org.cytoscape.model.*;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.TaskMonitor;
@@ -35,14 +35,14 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setProgress(0.0);
 
         System.err.println("Selected networks:");
-        for(CyNetwork network : networks) {
-            System.err.println(network);
-        }
-        List<Network> in_networks = networks.stream().map(n -> cyNetworkToNetwork(n)).collect(Collectors.toList());
-        Aligner aligner = new LocalSearch(in_networks, new Model());
+        networks.stream().map(CyNetwork::toString).collect(Collectors.joining(", "));
+        System.err.println("Converting CyNetworks");
+        List<Network> in_networks = networks.stream().map(this::cyNetworkToNetwork).collect(Collectors.toList());
+        Aligner aligner = new IteratedLocalSearch(in_networks, new Model(), params.getPerturbation());
 
         for(int iteration = 0; iteration < params.getIterations() && !cancelled; ++iteration) {
-            taskMonitor.setStatusMessage(String.format("Iteration: %d. Conserved edges: %d.", iteration, aligner.getCurrentNumberOfEdges()));
+            System.err.println("iteration: " + iteration+1);
+            taskMonitor.setStatusMessage(String.format("Iteration: %d. Conserved edges: %d.", iteration+1, aligner.getCurrentNumberOfEdges()));
             aligner.step();
             taskMonitor.setProgress((float)iteration / params.getIterations());
         }
@@ -50,7 +50,7 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setStatusMessage("Finalizing");
         taskMonitor.setProgress(1.0);
 
-        CyNetwork out = networkToCyNetwork(aligner.getAlignment().buildNetwork());
+        CyNetwork out = networkToCyNetwork(aligner.getAlignment().buildNetwork(0, params.getConnected()));
         out.getRow(out).set(CyNetwork.NAME, "Aligned network");
         networkManager.addNetwork(out);
     }

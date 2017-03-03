@@ -1,8 +1,7 @@
-package dk.sdu.compbio.netgale.cynetgale.internal;
+package dk.sdu.compbio.cytomcs.internal;
 
 import org.cytoscape.application.swing.AbstractCyAction;
 import org.cytoscape.application.swing.CyAction;
-import org.cytoscape.application.swing.CySwingApplication;
 import org.cytoscape.application.swing.CytoPanelComponent;
 import org.cytoscape.model.CyNetworkFactory;
 import org.cytoscape.model.CyNetworkManager;
@@ -21,14 +20,13 @@ public class CyActivator extends AbstractCyActivator {
     }
 
     public void start(BundleContext bc) {
-        CySwingApplication cytoscapeDesktopService = getService(bc, CySwingApplication.class);
         CyNetworkManager networkManager = getService(bc, CyNetworkManager.class);
         CyNetworkFactory networkFactory = getService(bc, CyNetworkFactory.class);
         TaskManager taskManager = getService(bc, TaskManager.class);
 
         ControlPanel controlPanel = new ControlPanel(networkManager, networkFactory, taskManager);
 
-        AbstractCyAction loadControlPanelAction = new AbstractCyAction("Load NetGALE") {
+        AbstractCyAction loadControlPanelAction = new AbstractCyAction("Load CytoMCS") {
             @Override
             public void actionPerformed(ActionEvent actionEvent) {
                 registerService(bc, controlPanel, CytoPanelComponent.class, new Properties());

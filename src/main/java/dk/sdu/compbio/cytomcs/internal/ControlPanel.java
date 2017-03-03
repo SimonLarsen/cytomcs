@@ -1,4 +1,4 @@
-package dk.sdu.compbio.netgale.cynetgale.internal;
+package dk.sdu.compbio.cytomcs.internal;
 
 import net.miginfocom.swing.MigLayout;
 import org.cytoscape.application.swing.CytoPanelComponent;
@@ -15,12 +15,7 @@ import org.cytoscape.work.TaskManager;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-import javax.swing.text.DefaultEditorKit;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -29,10 +24,10 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
     private static final int DEFAULT_ITERATIONS = 20;
     private static final int DEFAULT_PERTURBATION = 10;
 
-    private DefaultListModel<CyNetwork> availableListModel;
-    private DefaultListModel<CyNetwork> selectedListModel;
+    private final DefaultListModel<CyNetwork> availableListModel;
+    private final DefaultListModel<CyNetwork> selectedListModel;
 
-    private JPanel rootPanel, paramsPanel, networksPanel, runPanel;
+    private JPanel rootPanel;
 
     private JSpinner iterationsSpinner;
     private JLabel perturbationLabel;
@@ -57,43 +52,29 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
 
         createGUI();
 
-        alignButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                java.util.List<CyNetwork> networks = new ArrayList<>();
-                Enumeration<CyNetwork> networks_enum = selectedListModel.elements();
-                while (networks_enum.hasMoreElements()) networks.add(networks_enum.nextElement());
-                Parameters params = getParameters();
+        alignButton.addActionListener(actionEvent -> {
+            java.util.List<CyNetwork> networks = new ArrayList<>();
+            Enumeration<CyNetwork> networks_enum = selectedListModel.elements();
+            while (networks_enum.hasMoreElements()) networks.add(networks_enum.nextElement());
+            Parameters params = getParameters();
 
-                taskManager.execute(new TaskIterator(new AlignTask(networks, networkFactory, networkManager, params)));
+            taskManager.execute(new TaskIterator(new AlignTask(networks, networkFactory, networkManager, params)));
+        });
+        includeButton.addActionListener(actionEvent -> {
+            java.util.List<CyNetwork> selected = availableList.getSelectedValuesList();
+            for (CyNetwork network : selected) {
+                availableListModel.removeElement(network);
+                selectedListModel.addElement(network);
             }
         });
-        includeButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                java.util.List<CyNetwork> selected = availableList.getSelectedValuesList();
-                for (CyNetwork network : selected) {
-                    availableListModel.removeElement(network);
-                    selectedListModel.addElement(network);
-                }
+        excludeButton.addActionListener(actionEvent -> {
+            java.util.List<CyNetwork> selected = selectedList.getSelectedValuesList();
+            for (CyNetwork network : selected) {
+                selectedListModel.removeElement(network);
+                availableListModel.addElement(network);
             }
         });
-        excludeButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent actionEvent) {
-                java.util.List<CyNetwork> selected = selectedList.getSelectedValuesList();
-                for (CyNetwork network : selected) {
-                    selectedListModel.removeElement(network);
-                    availableListModel.addElement(network);
-                }
-            }
-        });
-        perturbationSlider.addChangeListener(new ChangeListener() {
-            @Override
-            public void stateChanged(ChangeEvent changeEvent) {
-                perturbationLabel.setText(Integer.toString(perturbationSlider.getValue()) + "%");
-            }
-        });
+        perturbationSlider.addChangeListener(changeEvent -> perturbationLabel.setText(Integer.toString(perturbationSlider.getValue()) + "%"));
     }
 
     private Parameters getParameters() {
@@ -129,7 +110,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
 
     @Override
     public String getTitle() {
-        return "NetGALE";
+        return "CytoMCS";
     }
 
     @Override
@@ -139,7 +120,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
 
     private void createGUI() {
         // params panel
-        paramsPanel = new JPanel(new MigLayout("wrap 3"));
+        JPanel paramsPanel = new JPanel(new MigLayout("wrap 3"));
         paramsPanel.setBorder(new TitledBorder("Parameters"));
         iterationsSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_ITERATIONS, 1, 100, 1));
         perturbationLabel = new JLabel(Integer.toString(DEFAULT_PERTURBATION) + "%");
@@ -158,26 +139,30 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         includeButton = new JButton(">");
         excludeButton = new JButton("<");
 
-        JPanel networkButtonsPanel = new JPanel(new GridLayout(2,1));
-        networkButtonsPanel.add(includeButton);
-        networkButtonsPanel.add(excludeButton);
+        JPanel networkButtonsPanel = new JPanel(new MigLayout("wrap 1, fillx, filly", "[grow]"));
+        networkButtonsPanel.add(new JPanel());
+        networkButtonsPanel.add(includeButton, "grow, center");
+        networkButtonsPanel.add(excludeButton, "grow, center");
+        networkButtonsPanel.add(new JPanel());
 
-        networksPanel = new JPanel(new GridLayout(1, 3));
+        JPanel networksPanel = new JPanel(new MigLayout("wrap 3"));
         networksPanel.setBorder(new TitledBorder("Select networks to align"));
-        networksPanel.add(new JScrollPane(availableList));
-        networksPanel.add(networkButtonsPanel);
-        networksPanel.add(new JScrollPane(selectedList));
+
+        networksPanel.add(new JLabel("Available"));
+        networksPanel.add(new JPanel());
+        networksPanel.add(new JLabel("Selected"));
+
+        networksPanel.add(new JScrollPane(availableList), "width 45%");
+        networksPanel.add(networkButtonsPanel, "width 10%");
+        networksPanel.add(new JScrollPane(selectedList), "width 45%");
 
         // run panel
-        runPanel = new JPanel();
-        runPanel.setBorder(new TitledBorder("Start alignment"));
-        alignButton = new JButton("Align");
-        runPanel.add(alignButton, BorderLayout.CENTER);
+        alignButton = new JButton("Start alignment");
 
         // put together
         rootPanel = new JPanel(new MigLayout("wrap 1"));
         rootPanel.add(paramsPanel, "growx");
         rootPanel.add(networksPanel, "growx");
-        rootPanel.add(runPanel, "growx");
+        rootPanel.add(alignButton, "growx");
     }
 }

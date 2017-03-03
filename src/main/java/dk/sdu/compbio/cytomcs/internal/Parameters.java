@@ -1,4 +1,4 @@
-package dk.sdu.compbio.netgale.cynetgale.internal;
+package dk.sdu.compbio.cytomcs.internal;
 
 public class Parameters {
     private final int iterations;

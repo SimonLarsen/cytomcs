@@ -15,19 +15,37 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Task computing the maximum common edge subgraph using an iterative local search algorithm.
+ */
 public class AlignTask extends AbstractTask {
     private final List<CyNetwork> networks;
     private final CyNetworkFactory networkFactory;
     private final CyNetworkManager networkManager;
     private final Parameters params;
+    private CyNetwork result;
 
+    /**
+     * Create new AlignTask instance.
+     * @param networks List of networks to align.
+     * @param networkFactory CyNetworkFactory instance of creating the result.
+     * @param networkManager CyNetworkManager instance of adding the results to the network collection.
+     * @param params Parameters for the instance.
+     */
     public AlignTask(List<CyNetwork> networks, CyNetworkFactory networkFactory, CyNetworkManager networkManager, Parameters params) {
         this.networks = networks;
         this.networkFactory = networkFactory;
         this.networkManager = networkManager;
         this.params = params;
+
+        this.result = null;
     }
 
+    /**
+     * Starts the task. The task will run for a fixed number of iterations specified in the Parameters object.
+     * @param taskMonitor TaskMonitor instance used for showing task progress.
+     * @throws Exception
+     */
     @Override
     public void run(TaskMonitor taskMonitor) throws Exception {
         taskMonitor.setTitle("Aligning networks");
@@ -50,9 +68,17 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setStatusMessage("Finalizing");
         taskMonitor.setProgress(1.0);
 
-        CyNetwork out = networkToCyNetwork(aligner.getAlignment().buildNetwork(0, params.getConnected()));
-        out.getRow(out).set(CyNetwork.NAME, "Aligned network");
-        networkManager.addNetwork(out);
+        result = networkToCyNetwork(aligner.getAlignment().buildNetwork(0, params.getConnected()));
+        result.getRow(result).set(CyNetwork.NAME, "Aligned network");
+        networkManager.addNetwork(result);
+    }
+
+    /**
+     * Returns the computed common subgraph.
+     * @return The common subgraph. Returns null if called before the task has been run.
+     */
+    public CyNetwork getResult() {
+        return result;
     }
 
     private Network cyNetworkToNetwork(CyNetwork network) {

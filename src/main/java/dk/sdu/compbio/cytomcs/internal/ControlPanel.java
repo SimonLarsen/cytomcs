@@ -18,6 +18,7 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 
 public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, NetworkAboutToBeDestroyedListener {
@@ -26,12 +27,14 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
 
     private final DefaultListModel<CyNetwork> availableListModel;
     private final DefaultListModel<CyNetwork> selectedListModel;
+    private final SpinnerNumberModel exceptionsSpinnerModel;
 
     private JPanel rootPanel;
 
     private JSpinner iterationsSpinner;
     private JLabel perturbationLabel;
     private JSlider perturbationSlider;
+    private JSpinner exceptionsSpinner;
     private JCheckBox connectedCheckbox;
     private JList<CyNetwork> availableList;
     private JList<CyNetwork> selectedList;
@@ -50,6 +53,8 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
             availableListModel.addElement(network);
         }
 
+        exceptionsSpinnerModel = new SpinnerNumberModel(0, 0, 0, 1);
+
         createGUI();
 
         alignButton.addActionListener(actionEvent -> {
@@ -66,12 +71,17 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
                 availableListModel.removeElement(network);
                 selectedListModel.addElement(network);
             }
+            exceptionsSpinnerModel.setMaximum(numSelected());
         });
         excludeButton.addActionListener(actionEvent -> {
             java.util.List<CyNetwork> selected = selectedList.getSelectedValuesList();
             for (CyNetwork network : selected) {
                 selectedListModel.removeElement(network);
                 availableListModel.addElement(network);
+            }
+            exceptionsSpinnerModel.setMaximum(numSelected());
+            if((Integer)exceptionsSpinner.getValue() > (Integer)exceptionsSpinnerModel.getMaximum()) {
+                exceptionsSpinnerModel.setValue(exceptionsSpinnerModel.getMaximum());
             }
         });
         perturbationSlider.addChangeListener(changeEvent -> perturbationLabel.setText(Integer.toString(perturbationSlider.getValue()) + "%"));
@@ -83,8 +93,9 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         } catch(ParseException pe) { }
         int iterations = (Integer)iterationsSpinner.getValue();
         float perturbation = perturbationSlider.getValue() / 100f;
+        int exceptions = (Integer)exceptionsSpinner.getValue();
         boolean connected = connectedCheckbox.isSelected();
-        return new Parameters(iterations, perturbation, connected);
+        return new Parameters(iterations, perturbation, exceptions, connected);
     }
 
     @Override
@@ -125,12 +136,15 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         iterationsSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_ITERATIONS, 1, 100, 1));
         perturbationLabel = new JLabel(Integer.toString(DEFAULT_PERTURBATION) + "%");
         perturbationSlider = new JSlider(0, 100, DEFAULT_PERTURBATION);
+        exceptionsSpinner = new JSpinner(exceptionsSpinnerModel);
         connectedCheckbox = new JCheckBox("Extract largest connected component");
         paramsPanel.add(new JLabel("Iterations"));
         paramsPanel.add(iterationsSpinner, "span 2");
         paramsPanel.add(new JLabel("Perturbation"));
         paramsPanel.add(perturbationSlider);
         paramsPanel.add(perturbationLabel);
+        paramsPanel.add(new JLabel("Exceptions"));
+        paramsPanel.add(exceptionsSpinner, "wrap 2");
         paramsPanel.add(connectedCheckbox, "span 3");
 
         // networks panel
@@ -164,5 +178,15 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         rootPanel.add(paramsPanel, "growx");
         rootPanel.add(networksPanel, "growx");
         rootPanel.add(alignButton, "growx");
+    }
+
+    private int numSelected() {
+        int count = 0;
+        Enumeration<CyNetwork> e = selectedListModel.elements();
+        while(e.hasMoreElements()) {
+            e.nextElement();
+            count++;
+        }
+        return count;
     }
 }

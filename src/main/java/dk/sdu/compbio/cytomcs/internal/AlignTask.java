@@ -1,6 +1,5 @@
 package dk.sdu.compbio.cytomcs.internal;
 
-import dk.sdu.compbio.faithmcs.Model;
 import dk.sdu.compbio.faithmcs.alg.Aligner;
 import dk.sdu.compbio.faithmcs.alg.IteratedLocalSearch;
 import dk.sdu.compbio.faithmcs.network.Edge;
@@ -10,13 +9,10 @@ import org.cytoscape.model.*;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.TaskMonitor;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 /**
  * Task computing the maximum common edge subgraph using an iterative local search algorithm.
@@ -62,7 +58,7 @@ public class AlignTask extends AbstractTask {
         List<Network> in_networks = networks.stream().map(this::cyNetworkToNetwork).collect(Collectors.toList());
 
         System.err.println("Creating aligner");
-        Aligner aligner = new IteratedLocalSearch(in_networks, new Model(), params.getPerturbation());
+        Aligner aligner = new IteratedLocalSearch(in_networks, params.getPerturbation());
 
         System.err.println("Starting alignment");
         for(int iteration = 0; iteration < params.getIterations() && !cancelled; ++iteration) {
@@ -75,7 +71,7 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setStatusMessage("Finalizing");
         taskMonitor.setProgress(1.0);
 
-        result = networkToCyNetwork(aligner.getAlignment().buildNetwork(0, params.getConnected()), networks);
+        result = networkToCyNetwork(aligner.getAlignment().buildNetwork(params.getExceptions(), params.getConnected()), networks);
         result.getRow(result).set(CyNetwork.NAME, "Aligned network");
         networkManager.addNetwork(result);
     }
@@ -100,7 +96,8 @@ public class AlignTask extends AbstractTask {
         for(CyEdge cyedge : network.getEdgeList()) {
             Node source = nodeMap.get(cyedge.getSource().getSUID());
             Node target = nodeMap.get(cyedge.getTarget().getSUID());
-            Edge edge = new Edge(source, target);
+            String name = network.getRow(cyedge).get(CyNetwork.NAME, String.class);
+            Edge edge = new Edge(source, target, name);
             out.addEdge(source, target, edge);
         }
 
@@ -109,6 +106,9 @@ public class AlignTask extends AbstractTask {
 
     private CyNetwork networkToCyNetwork(Network result, List<CyNetwork> networks) {
         CyNetwork out = networkFactory.createNetwork();
+        CyTable edge_table = out.getDefaultEdgeTable();
+
+        edge_table.createColumn("exceptions", Integer.class, false);
 
         Map<String,CyNode> nodeMap = new HashMap<>();
 
@@ -130,7 +130,10 @@ public class AlignTask extends AbstractTask {
                 out.getRow(cytarget).set(CyNetwork.NAME, getAlignmentNodeLabel(target.getLabel(), networks));
             }
 
-            out.addEdge(cysource, cytarget, false);
+            CyEdge e = out.addEdge(cysource, cytarget, false);
+            int exceptions = networks.size() - edge.getConservation();
+            out.getRow(e).set(CyNetwork.NAME, edge.getLabel());
+            out.getRow(e).set("exceptions", exceptions);
         }
 
         return out;

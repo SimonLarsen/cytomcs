@@ -1,5 +1,6 @@
 package dk.sdu.compbio.cytomcs.internal;
 
+import dk.sdu.compbio.faithmcs.Alignment;
 import dk.sdu.compbio.faithmcs.alg.Aligner;
 import dk.sdu.compbio.faithmcs.alg.IteratedLocalSearch;
 import dk.sdu.compbio.faithmcs.network.Edge;
@@ -9,6 +10,7 @@ import org.cytoscape.model.*;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.TaskMonitor;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +49,10 @@ public class AlignTask extends AbstractTask {
      */
     @Override
     public void run(TaskMonitor taskMonitor) throws Exception {
+        if(networks.size() < 2) {
+            throw new RuntimeException("At least two networks needed for finding MCS.");
+        }
+
         taskMonitor.setTitle("Aligning networks");
         taskMonitor.setStatusMessage("Preparing alignment");
         taskMonitor.setProgress(0.0);
@@ -71,7 +77,9 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setStatusMessage("Finalizing");
         taskMonitor.setProgress(1.0);
 
-        result = networkToCyNetwork(aligner.getAlignment().buildNetwork(params.getExceptions(), params.getConnected()));
+        System.err.println("Building result network");
+        Alignment alignment = aligner.getAlignment();
+        result = alignmentToCyNetwork(alignment);
         result.getRow(result).set(CyNetwork.NAME, "Aligned network");
         networkManager.addNetwork(result);
     }
@@ -104,7 +112,9 @@ public class AlignTask extends AbstractTask {
         return out;
     }
 
-    private CyNetwork networkToCyNetwork(Network result) {
+    private CyNetwork alignmentToCyNetwork(Alignment alignment) {
+        Network network = alignment.buildNetwork(params.getExceptions(), params.getConnected());
+        List<List<Node>> nodes = alignment.getAlignment();
         CyNetwork out = networkFactory.createNetwork();
         CyTable edgeTable = out.getDefaultEdgeTable();
 
@@ -113,14 +123,16 @@ public class AlignTask extends AbstractTask {
 
         // Create nodes
         Map<String,CyNode> nodeMap = new HashMap<>();
-        for(Node node : result.vertexSet()) {
+        for(Node node : network.vertexSet()) {
+            if(network.degreeOf(node) == 0) continue;
             CyNode cynode = out.addNode();
             nodeMap.put(node.getLabel(), cynode);
-            out.getRow(cynode).set(CyNetwork.NAME, getAlignmentNodeLabel(node.getLabel()));
+            String label = getAlignmentNodeLabel(nodes, node.getPosition());
+            out.getRow(cynode).set(CyNetwork.NAME, label);
         }
 
         // Create edges
-        for(Edge edge : result.edgeSet()) {
+        for(Edge edge : network.edgeSet()) {
             CyNode cysource = nodeMap.get(edge.getSource().getLabel());
             CyNode cytarget = nodeMap.get(edge.getTarget().getLabel());
 
@@ -137,15 +149,14 @@ public class AlignTask extends AbstractTask {
         return out;
     }
 
-    private String getAlignmentNodeLabel(String name) {
-        String[] parts = name.split(",");
-        StringBuilder sb = new StringBuilder();
-        for(int i = 0; i < parts.length; ++i) {
-            Long suid = Long.parseLong(parts[i]);
+    private String getAlignmentNodeLabel(List<List<Node>> nodes, int pos) {
+        List<String> names = new ArrayList<>();
+        for(int i = 0; i < networks.size(); ++i) {
+            if(nodes.get(i).get(pos).isFake()) continue;
+            Long suid = Long.parseLong(nodes.get(i).get(pos).getLabel());
             CyNode node = networks.get(i).getNode(suid);
-            sb.append(networks.get(i).getRow(node).get(CyNetwork.NAME, String.class));
-            if(i < parts.length-1) sb.append(",");
+            names.add(networks.get(i).getRow(node).get(CyNetwork.NAME, String.class));
         }
-        return sb.toString();
+        return String.join(",", names);
     }
 }

@@ -16,9 +16,11 @@ import org.cytoscape.work.TaskManager;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Enumeration;
 
 public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, NetworkAboutToBeDestroyedListener {
@@ -41,6 +43,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
     private JButton includeButton;
     private JButton excludeButton;
     private JButton alignButton;
+    private JButton footerButton;
 
     public ControlPanel(
             CyNetworkManager networkManager,
@@ -85,6 +88,15 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
             }
         });
         perturbationSlider.addChangeListener(changeEvent -> perturbationLabel.setText(Integer.toString(perturbationSlider.getValue()) + "%"));
+        footerButton.addActionListener(actionEvent -> {
+            if(Desktop.isDesktopSupported()) {
+                try {
+                    Desktop.getDesktop().browse(new URI(PackageProperties.URL));
+                } catch(Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     private Parameters getParameters() {
@@ -137,13 +149,13 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         perturbationLabel = new JLabel(Integer.toString(DEFAULT_PERTURBATION) + "%");
         perturbationSlider = new JSlider(0, 100, DEFAULT_PERTURBATION);
         exceptionsSpinner = new JSpinner(exceptionsSpinnerModel);
-        connectedCheckbox = new JCheckBox("Extract largest connected component");
+        connectedCheckbox = new JCheckBox("Extract only largest connected component");
         paramsPanel.add(new JLabel("Iterations"));
         paramsPanel.add(iterationsSpinner, "span 2");
         paramsPanel.add(new JLabel("Perturbation"));
         paramsPanel.add(perturbationSlider);
         paramsPanel.add(perturbationLabel);
-        paramsPanel.add(new JLabel("Exceptions"));
+        paramsPanel.add(new JLabel("Edge exceptions"));
         paramsPanel.add(exceptionsSpinner, "wrap 2");
         paramsPanel.add(connectedCheckbox, "span 3");
 
@@ -170,14 +182,23 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         networksPanel.add(networkButtonsPanel, "width 10%");
         networksPanel.add(new JScrollPane(selectedList), "width 45%");
 
-        // run panel
+        // start button
         alignButton = new JButton("Start alignment");
+
+        // footer with clickable link
+        footerButton = new JButton(String.format("<html><u><font color=\"#0000ff\">CytoMCS version %s</font></u></html>", PackageProperties.VERSION));
+        footerButton.setBorderPainted(false);
+        footerButton.setOpaque(false);
+        footerButton.setContentAreaFilled(false);
+        footerButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
         // put together
         rootPanel = new JPanel(new MigLayout("wrap 1"));
         rootPanel.add(paramsPanel, "growx");
         rootPanel.add(networksPanel, "growx");
-        rootPanel.add(alignButton, "growx");
+        rootPanel.add(alignButton, "center");
+
+        rootPanel.add(footerButton, "shrinkx");
     }
 
     private int numSelected() {

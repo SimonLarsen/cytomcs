@@ -71,14 +71,14 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setStatusMessage("Finalizing");
         taskMonitor.setProgress(1.0);
 
-        result = networkToCyNetwork(aligner.getAlignment().buildNetwork(params.getExceptions(), params.getConnected()), networks);
+        result = networkToCyNetwork(aligner.getAlignment().buildNetwork(params.getExceptions(), params.getConnected()));
         result.getRow(result).set(CyNetwork.NAME, "Aligned network");
         networkManager.addNetwork(result);
     }
 
     /**
-     * Returns the computed common subgraph.
-     * @return The common subgraph. Returns null if called before the task has been run.
+     * Returns the computed MCS.
+     * @return The computed subgraph. Returns null if called before the task has been run.
      */
     public CyNetwork getResult() {
         return result;
@@ -104,30 +104,28 @@ public class AlignTask extends AbstractTask {
         return out;
     }
 
-    private CyNetwork networkToCyNetwork(Network result, List<CyNetwork> networks) {
+    private CyNetwork networkToCyNetwork(Network result) {
         CyNetwork out = networkFactory.createNetwork();
-        CyTable edge_table = out.getDefaultEdgeTable();
+        CyTable edgeTable = out.getDefaultEdgeTable();
 
-        edge_table.createColumn("exceptions", Integer.class, false);
+        // Create exceptions column
+        edgeTable.createColumn("exceptions", Integer.class, false);
 
+        // Create nodes
         Map<String,CyNode> nodeMap = new HashMap<>();
+        for(Node node : result.vertexSet()) {
+            CyNode cynode = out.addNode();
+            nodeMap.put(node.getLabel(), cynode);
+            out.getRow(cynode).set(CyNetwork.NAME, getAlignmentNodeLabel(node.getLabel()));
+        }
 
+        // Create edges
         for(Edge edge : result.edgeSet()) {
-            Node source = edge.getSource();
-            Node target = edge.getTarget();
-
             CyNode cysource = nodeMap.get(edge.getSource().getLabel());
             CyNode cytarget = nodeMap.get(edge.getTarget().getLabel());
 
-            if(cysource == null) {
-                cysource = out.addNode();
-                nodeMap.put(source.getLabel(), cysource);
-                out.getRow(cysource).set(CyNetwork.NAME, getAlignmentNodeLabel(source.getLabel(), networks));
-            }
-            if(cytarget == null) {
-                cytarget = out.addNode();
-                nodeMap.put(target.getLabel(), cytarget);
-                out.getRow(cytarget).set(CyNetwork.NAME, getAlignmentNodeLabel(target.getLabel(), networks));
+            if(cysource == null || cytarget == null) {
+                throw new RuntimeException("Edge connected to missing node.");
             }
 
             CyEdge e = out.addEdge(cysource, cytarget, false);
@@ -139,7 +137,7 @@ public class AlignTask extends AbstractTask {
         return out;
     }
 
-    private String getAlignmentNodeLabel(String name, List<CyNetwork> networks) {
+    private String getAlignmentNodeLabel(String name) {
         String[] parts = name.split(",");
         StringBuilder sb = new StringBuilder();
         for(int i = 0; i < parts.length; ++i) {

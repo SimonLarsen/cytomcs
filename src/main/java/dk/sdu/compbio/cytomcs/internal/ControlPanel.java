@@ -16,16 +16,14 @@ import org.cytoscape.work.TaskManager;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
-import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 
 public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, NetworkAboutToBeDestroyedListener {
-    private static final int DEFAULT_ITERATIONS = 20;
-    private static final int DEFAULT_PERTURBATION = 10;
+    private static final int DEFAULT_NONIMPROVING = 20;
+    private static final int DEFAULT_PERTURBATION = 20;
 
     private final DefaultListModel<CyNetwork> availableListModel;
     private final DefaultListModel<CyNetwork> selectedListModel;
@@ -38,6 +36,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
     private JSlider perturbationSlider;
     private JSpinner exceptionsSpinner;
     private JCheckBox connectedCheckbox;
+    private JCheckBox removeLeafExceptionsCheckbox;
     private JList<CyNetwork> availableList;
     private JList<CyNetwork> selectedList;
     private JButton includeButton;
@@ -107,7 +106,8 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         float perturbation = perturbationSlider.getValue() / 100f;
         int exceptions = (Integer)exceptionsSpinner.getValue();
         boolean connected = connectedCheckbox.isSelected();
-        return new Parameters(iterations, perturbation, exceptions, connected);
+        boolean remove_leaf_exceptions = removeLeafExceptionsCheckbox.isSelected();
+        return new Parameters(iterations, perturbation, exceptions, connected, remove_leaf_exceptions);
     }
 
     @Override
@@ -145,12 +145,13 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         // params panel
         JPanel paramsPanel = new JPanel(new MigLayout("wrap 3"));
         paramsPanel.setBorder(new TitledBorder("Parameters"));
-        iterationsSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_ITERATIONS, 1, 100, 1));
+        iterationsSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_NONIMPROVING, 1, 100, 1));
         perturbationLabel = new JLabel(Integer.toString(DEFAULT_PERTURBATION) + "%");
         perturbationSlider = new JSlider(0, 100, DEFAULT_PERTURBATION);
         exceptionsSpinner = new JSpinner(exceptionsSpinnerModel);
         connectedCheckbox = new JCheckBox("Extract only largest connected component");
-        paramsPanel.add(new JLabel("Iterations"));
+        removeLeafExceptionsCheckbox = new JCheckBox("Remove leaves connected by exception edge");
+        paramsPanel.add(new JLabel("Max non-improving iterations"));
         paramsPanel.add(iterationsSpinner, "span 2");
         paramsPanel.add(new JLabel("Perturbation"));
         paramsPanel.add(perturbationSlider);
@@ -158,6 +159,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         paramsPanel.add(new JLabel("Edge exceptions"));
         paramsPanel.add(exceptionsSpinner, "wrap 2");
         paramsPanel.add(connectedCheckbox, "span 3");
+        paramsPanel.add(removeLeafExceptionsCheckbox, "span 3");
 
         // networks panel
         availableList = new JList<>(availableListModel);
@@ -186,7 +188,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         alignButton = new JButton("Start alignment");
 
         // footer with clickable link
-        footerButton = new JButton(String.format("<html><u><font color=\"#0000ff\">CytoMCS version %s</font></u></html>", PackageProperties.VERSION));
+        footerButton = new JButton(String.format("<html><u><font color=\"#0366d6\">CytoMCS version %s</font></u></html>", PackageProperties.VERSION));
         footerButton.setBorderPainted(false);
         footerButton.setOpaque(false);
         footerButton.setContentAreaFilled(false);

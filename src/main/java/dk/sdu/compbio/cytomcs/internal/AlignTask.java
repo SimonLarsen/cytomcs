@@ -55,7 +55,6 @@ public class AlignTask extends AbstractTask {
 
         taskMonitor.setTitle("Aligning networks");
         taskMonitor.setStatusMessage("Preparing alignment");
-        taskMonitor.setProgress(0.0);
 
         System.err.println("Selected networks:");
         System.err.println(networks.stream().map(CyNetwork::toString).collect(Collectors.joining(", ")));
@@ -67,11 +66,16 @@ public class AlignTask extends AbstractTask {
         Aligner aligner = new IteratedLocalSearch(in_networks, params.getPerturbation());
 
         System.err.println("Starting alignment");
-        for(int iteration = 0; iteration < params.getIterations() && !cancelled; ++iteration) {
-            System.err.println("iteration: " + iteration+1);
-            taskMonitor.setStatusMessage(String.format("Iteration: %d. Conserved edges: %d.", iteration+1, aligner.getCurrentNumberOfEdges()));
-            aligner.step();
-            taskMonitor.setProgress((float)iteration / params.getIterations());
+        int iteration = 1;
+        int nonimproving = 0;
+        while(nonimproving < params.getMaxNonimprovingIterations() && !cancelled) {
+            System.err.println("iteration: " + iteration);
+            iteration++;
+            nonimproving++;
+            if(aligner.step()) {
+                nonimproving = 0;
+            }
+            taskMonitor.setStatusMessage(String.format("Iteration: %d. Conserved edges: %d.", iteration+1, aligner.getBestNumberOfEdges()));
         }
 
         taskMonitor.setStatusMessage("Finalizing");
@@ -113,7 +117,7 @@ public class AlignTask extends AbstractTask {
     }
 
     private CyNetwork alignmentToCyNetwork(Alignment alignment) {
-        Network network = alignment.buildNetwork(params.getExceptions(), params.getConnected());
+        Network network = alignment.buildNetwork(params.getExceptions(), params.getConnected(), params.getRemoveLeafExceptions());
         List<List<Node>> nodes = alignment.getAlignment();
         CyNetwork out = networkFactory.createNetwork();
         CyTable edgeTable = out.getDefaultEdgeTable();

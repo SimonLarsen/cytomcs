@@ -75,7 +75,7 @@ public class AlignTask extends AbstractTask {
             if(aligner.step()) {
                 nonimproving = 0;
             }
-            taskMonitor.setStatusMessage(String.format("Iteration: %d. Conserved edges: %d.", iteration+1, aligner.getBestNumberOfEdges()));
+            taskMonitor.setStatusMessage(String.format("Iteration: %d. Conserved edges: %d.", iteration, aligner.getBestNumberOfEdges()));
         }
 
         taskMonitor.setStatusMessage("Finalizing");
@@ -120,7 +120,25 @@ public class AlignTask extends AbstractTask {
         Network network = alignment.buildNetwork(params.getExceptions(), params.getConnected(), params.getRemoveLeafExceptions());
         List<List<Node>> nodes = alignment.getAlignment();
         CyNetwork out = networkFactory.createNetwork();
+
+        CyTable nodeTable = out.getDefaultNodeTable();
         CyTable edgeTable = out.getDefaultEdgeTable();
+
+        // Add network columns to node table
+        HashMap<String,Integer> collisionMap = new HashMap<>();
+        List<String> networkColumns = new ArrayList<>();
+        for(CyNetwork n : networks) {
+            String name = n.getRow(n).get(CyNetwork.NAME, String.class);
+            if(collisionMap.containsKey(name)) {
+                int count = collisionMap.get(name);
+                collisionMap.put(name, count+1);
+                name += "_" + count;
+            } else {
+                collisionMap.put(name, 1);
+            }
+            nodeTable.createColumn(name, String.class, true);
+            networkColumns.add(name);
+        }
 
         // Create exceptions column
         edgeTable.createColumn("exceptions", Integer.class, false);
@@ -132,7 +150,16 @@ public class AlignTask extends AbstractTask {
             CyNode cynode = out.addNode();
             nodeMap.put(node.getLabel(), cynode);
             String label = getAlignmentNodeLabel(nodes, node.getPosition());
-            out.getRow(cynode).set(CyNetwork.NAME, label);
+            CyRow row = out.getRow(cynode);
+            row.set(CyNetwork.NAME, label);
+
+            for(int i = 0; i < networks.size(); ++i) {
+                if(nodes.get(i).get(node.getPosition()).isFake()) continue;
+                Long suid = Long.parseLong(nodes.get(i).get(node.getPosition()).getLabel());
+                CyNode from_cynode = networks.get(i).getNode(suid);
+                String cylabel = networks.get(i).getRow(from_cynode).get(CyNetwork.NAME, String.class);
+                row.set(networkColumns.get(i), cylabel);
+            }
         }
 
         // Create edges

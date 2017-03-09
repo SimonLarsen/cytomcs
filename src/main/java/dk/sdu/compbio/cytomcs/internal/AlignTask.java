@@ -56,20 +56,12 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setTitle("Aligning networks");
         taskMonitor.setStatusMessage("Preparing alignment");
 
-        System.err.println("Selected networks:");
-        System.err.println(networks.stream().map(CyNetwork::toString).collect(Collectors.joining(", ")));
-
-        System.err.println("Converting CyNetworks");
         List<Network> in_networks = networks.stream().map(this::cyNetworkToNetwork).collect(Collectors.toList());
-
-        System.err.println("Creating aligner");
         Aligner aligner = new IteratedLocalSearch(in_networks, params.getPerturbation());
 
-        System.err.println("Starting alignment");
         int iteration = 1;
         int nonimproving = 0;
         while(nonimproving < params.getMaxNonimprovingIterations() && !cancelled) {
-            System.err.println("iteration: " + iteration);
             iteration++;
             nonimproving++;
             if(aligner.step()) {
@@ -81,7 +73,6 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setStatusMessage("Finalizing");
         taskMonitor.setProgress(1.0);
 
-        System.err.println("Building result network");
         Alignment alignment = aligner.getAlignment();
         result = alignmentToCyNetwork(alignment);
         result.getRow(result).set(CyNetwork.NAME, "Aligned network");

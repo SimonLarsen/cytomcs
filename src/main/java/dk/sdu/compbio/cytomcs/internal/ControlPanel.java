@@ -147,7 +147,7 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         paramsPanel.setBorder(new TitledBorder("Parameters"));
         iterationsSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_NONIMPROVING, 1, 100, 1));
         perturbationLabel = new JLabel(Integer.toString(DEFAULT_PERTURBATION) + "%");
-        perturbationSlider = new JSlider(0, 100, DEFAULT_PERTURBATION);
+        perturbationSlider = new JSlider(1, 100, DEFAULT_PERTURBATION);
         exceptionsSpinner = new JSpinner(exceptionsSpinnerModel);
         connectedCheckbox = new JCheckBox("Extract only largest connected component");
         removeLeafExceptionsCheckbox = new JCheckBox("Remove leaves connected by exception edge");

@@ -1,14 +1,18 @@
 package dk.sdu.compbio.cytomcs.internal;
 
 import dk.sdu.compbio.faithmcs.Alignment;
-import dk.sdu.compbio.faithmcs.alg.Aligner;
+import dk.sdu.compbio.faithmcs.alg.DirectedIteratedLocalSearch;
 import dk.sdu.compbio.faithmcs.alg.IteratedLocalSearch;
+import dk.sdu.compbio.faithmcs.alg.UndirectedIteratedLocalSearch;
+import dk.sdu.compbio.faithmcs.network.DirectedNetwork;
 import dk.sdu.compbio.faithmcs.network.Edge;
-import dk.sdu.compbio.faithmcs.network.Network;
 import dk.sdu.compbio.faithmcs.network.Node;
+import dk.sdu.compbio.faithmcs.network.UndirectedNetwork;
 import org.cytoscape.model.*;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.TaskMonitor;
+import org.jgrapht.Graph;
+import sun.nio.ch.Net;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,8 +60,24 @@ public class AlignTask extends AbstractTask {
         taskMonitor.setTitle("Aligning networks");
         taskMonitor.setStatusMessage("Preparing alignment");
 
-        List<Network> in_networks = networks.stream().map(this::cyNetworkToNetwork).collect(Collectors.toList());
-        Aligner aligner = new IteratedLocalSearch(in_networks, params.getPerturbation());
+        IteratedLocalSearch aligner;
+        if(params.getDirected()) {
+            List<DirectedNetwork> in_networks = new ArrayList<>();
+            for(CyNetwork network : networks) {
+                DirectedNetwork out = new DirectedNetwork();
+                cyNetworkToNetwork(out, network);
+                in_networks.add(out);
+            }
+            aligner = new DirectedIteratedLocalSearch(in_networks, params.getPerturbation());
+        } else {
+            List<UndirectedNetwork> in_networks = new ArrayList<>();
+            for(CyNetwork network : networks) {
+                UndirectedNetwork out = new UndirectedNetwork();
+                cyNetworkToNetwork(out, network);
+                in_networks.add(out);
+            }
+            aligner = new UndirectedIteratedLocalSearch(in_networks, params.getPerturbation());
+        }
 
         int iteration = 1;
         int nonimproving = 0;
@@ -87,8 +107,7 @@ public class AlignTask extends AbstractTask {
         return result;
     }
 
-    private Network cyNetworkToNetwork(CyNetwork network) {
-        Network out = new Network();
+    private void cyNetworkToNetwork(Graph<Node,Edge> out, CyNetwork network) {
         Map<Long,Node> nodeMap = new HashMap<>();
         for(CyNode cynode : network.getNodeList()) {
             Node node = new Node(Long.toString(cynode.getSUID()));
@@ -103,12 +122,10 @@ public class AlignTask extends AbstractTask {
             Edge edge = new Edge(source, target, name);
             out.addEdge(source, target, edge);
         }
-
-        return out;
     }
 
     private CyNetwork alignmentToCyNetwork(Alignment alignment) {
-        Network network = alignment.buildNetwork(params.getExceptions(), params.getConnected(), params.getRemoveLeafExceptions());
+        Graph<Node,Edge> network = alignment.buildNetwork(params.getExceptions(), params.getRemoveLeafExceptions());
         List<List<Node>> nodes = alignment.getAlignment();
         CyNetwork out = networkFactory.createNetwork();
 
@@ -137,7 +154,7 @@ public class AlignTask extends AbstractTask {
         // Create nodes
         Map<String,CyNode> nodeMap = new HashMap<>();
         for(Node node : network.vertexSet()) {
-            if(network.degreeOf(node) == 0) continue;
+            if(network.edgesOf(node).size() == 0) continue;
             CyNode cynode = out.addNode();
             nodeMap.put(node.getLabel(), cynode);
             String label = getAlignmentNodeLabel(nodes, node.getPosition());

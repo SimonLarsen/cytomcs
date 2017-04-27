@@ -31,11 +31,13 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
 
     private JPanel rootPanel;
 
+    private JRadioButton undirectedButton;
+    private JRadioButton directedButton;
+    private ButtonGroup directedButtonGroup;
     private JSpinner iterationsSpinner;
     private JLabel perturbationLabel;
     private JSlider perturbationSlider;
     private JSpinner exceptionsSpinner;
-    private JCheckBox connectedCheckbox;
     private JCheckBox removeLeafExceptionsCheckbox;
     private JList<CyNetwork> availableList;
     private JList<CyNetwork> selectedList;
@@ -102,12 +104,12 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         try {
             iterationsSpinner.commitEdit();
         } catch(ParseException pe) { }
+        boolean directed = directedButton.isSelected();
         int iterations = (Integer)iterationsSpinner.getValue();
         float perturbation = perturbationSlider.getValue() / 100f;
         int exceptions = (Integer)exceptionsSpinner.getValue();
-        boolean connected = connectedCheckbox.isSelected();
         boolean remove_leaf_exceptions = removeLeafExceptionsCheckbox.isSelected();
-        return new Parameters(iterations, perturbation, exceptions, connected, remove_leaf_exceptions);
+        return new Parameters(directed, iterations, perturbation, exceptions, remove_leaf_exceptions);
     }
 
     @Override
@@ -145,12 +147,20 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         // params panel
         JPanel paramsPanel = new JPanel(new MigLayout("wrap 3"));
         paramsPanel.setBorder(new TitledBorder("Parameters"));
+        undirectedButton = new JRadioButton("Undirected", true);
+        directedButton = new JRadioButton("Directed");
+        directedButtonGroup = new ButtonGroup();
+        directedButtonGroup.add(undirectedButton);
+        directedButtonGroup.add(directedButton);
         iterationsSpinner = new JSpinner(new SpinnerNumberModel(DEFAULT_NONIMPROVING, 1, 100, 1));
         perturbationLabel = new JLabel(Integer.toString(DEFAULT_PERTURBATION) + "%");
         perturbationSlider = new JSlider(1, 100, DEFAULT_PERTURBATION);
         exceptionsSpinner = new JSpinner(exceptionsSpinnerModel);
-        connectedCheckbox = new JCheckBox("Extract only largest connected component");
         removeLeafExceptionsCheckbox = new JCheckBox("Remove leaves connected by exception edge");
+
+        paramsPanel.add(new JLabel("Treat networks as:"), "span 3");
+        paramsPanel.add(undirectedButton, "span 3, gapleft 20");
+        paramsPanel.add(directedButton, "span 3, gapleft 20");
         paramsPanel.add(new JLabel("Max non-improving iterations"));
         paramsPanel.add(iterationsSpinner, "span 2");
         paramsPanel.add(new JLabel("Perturbation"));
@@ -158,7 +168,6 @@ public class ControlPanel implements CytoPanelComponent, NetworkAddedListener, N
         paramsPanel.add(perturbationLabel);
         paramsPanel.add(new JLabel("Edge exceptions"));
         paramsPanel.add(exceptionsSpinner, "wrap 2");
-        paramsPanel.add(connectedCheckbox, "span 3");
         paramsPanel.add(removeLeafExceptionsCheckbox, "span 3");
 
         // networks panel

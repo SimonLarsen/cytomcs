@@ -12,13 +12,11 @@ import org.cytoscape.model.*;
 import org.cytoscape.work.AbstractTask;
 import org.cytoscape.work.TaskMonitor;
 import org.jgrapht.Graph;
-import sun.nio.ch.Net;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Task computing the maximum common edge subgraph using an iterative local search algorithm.

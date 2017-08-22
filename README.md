@@ -44,4 +44,4 @@ See https://www.gnu.org/licenses/gpl-3.0.en.html for more information.
 
 ## Reference
 
-Citation details to be announced.
+Larsen, Simon J., and Jan Baumbach. "CytoMCS: A Multiple Maximum Common Subgraph Detection Tool for Cytoscape." *Journal of Integrative Bioinformatics* 14.2 (2017).
